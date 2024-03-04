@@ -83,7 +83,7 @@ class AdapGBN(nn.Module):
 
 
     def forward(self, input, cs, phase, threshold):
-        support = torch.matmul(input, self.normalize_weight)
+        support = torch.matmul(input, self.normalize_weight) #Normalize_weight bao gom input feature va output feature
         adj_A = self.gen_adj(self.gen_A_possion(cs, phase, threshold)).cuda()
         self.temp_adjwithgrad = torch.Tensor(adj_A.shape[0], adj_A.shape[0]).requires_grad_()
         self.temp_adjwithgrad.data = adj_A
