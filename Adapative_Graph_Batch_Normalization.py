@@ -77,7 +77,7 @@ class AdapGBN(nn.Module):
         cs[sample >= self.threshold_possion] = 0
         _adj = torch.from_numpy(cs).float().cuda()
         _adj = _adj * 0.5/ (_adj.sum(0, keepdims=True) + 1e-6)
-        _adj = _adj + torch.from_numpy(np.identity(_adj.shape[0], np.int)).float().cuda()
+        _adj = _adj + torch.from_numpy(np.identity(_adj.shape[0], int)).float().cuda()
 
         return _adj
 
