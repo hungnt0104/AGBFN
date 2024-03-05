@@ -7,6 +7,8 @@ import math
 import pdb
 import random
 
+from gat import GraphAttentionLayer
+
 class AdapGBN(nn.Module):
 
     def __init__(self, in_features, out_features, bias=False):
@@ -31,6 +33,14 @@ class AdapGBN(nn.Module):
         self.normalize_weight.data.uniform_(-stdv, stdv)
         if self.bias is not None:
             self.bias.data.uniform_(-stdv, stdv)
+
+    # GAT
+    # input_features = 512
+    # output_features = 512
+    # num_nodes = 512
+    
+    # # Instantiate the GraphAttentionLayer
+    # gat_layer = GraphAttentionLayer(in_features=input_features, out_features=output_features, n_heads=1)
     
     def gen_adj(self, A):
         D = torch.pow(A.sum(1).float(), -0.5)
