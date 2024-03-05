@@ -1,31 +1,45 @@
-import numpy as np
-import tensorflow as tf
+import torch
+from torch import nn
 
-from utils import layers
-from models.base_gattn import BaseGAttN
+from labml_helpers.module import Module
 
-class GAT(BaseGAttN):
-    def inference(inputs, nb_classes, nb_nodes, training, attn_drop, ffd_drop,
-            bias_mat, hid_units, n_heads, activation=tf.nn.elu, residual=False):
-        attns = []
-        for _ in range(n_heads[0]):
-            attns.append(layers.attn_head(inputs, bias_mat=bias_mat,
-                out_sz=hid_units[0], activation=activation,
-                in_drop=ffd_drop, coef_drop=attn_drop, residual=False))
-        h_1 = tf.concat(attns, axis=-1)
-        for i in range(1, len(hid_units)):
-            h_old = h_1
-            attns = []
-            for _ in range(n_heads[i]):
-                attns.append(layers.attn_head(h_1, bias_mat=bias_mat,
-                    out_sz=hid_units[i], activation=activation,
-                    in_drop=ffd_drop, coef_drop=attn_drop, residual=residual))
-            h_1 = tf.concat(attns, axis=-1)
-        out = []
-        for i in range(n_heads[-1]):
-            out.append(layers.attn_head(h_1, bias_mat=bias_mat,
-                out_sz=nb_classes, activation=lambda x: x,
-                in_drop=ffd_drop, coef_drop=attn_drop, residual=False))
-        logits = tf.add_n(out) / n_heads[-1]
-    
-        return logits
+class GraphAttentionLayer(Module):
+    def __init__(self, in_features: int, out_features: int, n_heads: int,
+                 is_concat: bool = True,
+                 dropout: float = 0.6,
+                 leaky_relu_negative_slope: float = 0.2):
+        super().__init__()
+        self.is_concat = is_concat
+        self.n_heads = n_heads
+
+        if is_concat:
+            assert out_features % n_heads == 0
+            self.n_hidden = out_features // n_heads
+        else:
+            self.n_hidden = out_features
+        self.linear = nn.Linear(in_features, self.n_hidden * n_heads, bias=False)
+        self.attn = nn.Linear(self.n_hidden * 2, 1, bias=False)
+        self.activation = nn.LeakyReLU(negative_slope=leaky_relu_negative_slope)
+        self.softmax = nn.Softmax(dim=1)
+        self.dropout = nn.Dropout(dropout)
+    def forward(self, h: torch.Tensor, adj_mat: torch.Tensor):
+        n_nodes = h.shape[0]
+        g = self.linear(h).view(n_nodes, self.n_heads, self.n_hidden)
+        g_repeat = g.repeat(n_nodes, 1, 1)
+        g_repeat_interleave = g.repeat_interleave(n_nodes, dim=0)
+        g_concat = torch.cat([g_repeat_interleave, g_repeat], dim=-1)
+        g_concat = g_concat.view(n_nodes, n_nodes, self.n_heads, 2 * self.n_hidden)
+        e = self.activation(self.attn(g_concat))
+        e = e.squeeze(-1)
+        assert adj_mat.shape[0] == 1 or adj_mat.shape[0] == n_nodes
+        assert adj_mat.shape[1] == 1 or adj_mat.shape[1] == n_nodes
+        assert adj_mat.shape[2] == 1 or adj_mat.shape[2] == self.n_heads
+
+        e = e.masked_fill(adj_mat == 0, float('-inf'))
+        a = self.softmax(e)
+        a = self.dropout(a)
+        attn_res = torch.einsum('ijh,jhf->ihf', a, g)
+        if self.is_concat:
+            return attn_res.reshape(n_nodes, self.n_heads * self.n_hidden)
+        else:
+            return attn_res.mean(dim=1)
