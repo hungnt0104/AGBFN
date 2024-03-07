@@ -19,7 +19,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 import matplotlib.pyplot as plt
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 # import timm
-batchsize_global = 512
+batchsize_global = 128
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--raf_path', type=str, default='/home/dyt/FER_workspace/FERdataset/RAFDB/', help='Raf-DB dataset path.')
