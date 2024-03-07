@@ -5,8 +5,8 @@ from labml_helpers.module import Module
 
 class GraphAttentionLayer(Module):
     def __init__(self, in_features: int, out_features: int, n_heads: int, #out_features thi minh tu specify
-                 is_concat: bool = True,
-                 dropout: float = 0.6,
+                 is_concat: bool = False,
+                 dropout: float = 0.5,
                  leaky_relu_negative_slope: float = 0.2):
         super().__init__()
         self.is_concat = is_concat
@@ -38,7 +38,7 @@ class GraphAttentionLayer(Module):
         e = e.masked_fill(adj_mat == 0, float('-inf')) #mask: set attention score ve am vo cuc, dam bao no se k tham gia vao viec dung softmax de normalization
         a = self.softmax(e)
         a = self.dropout(a)
-        attn_res = torch.einsum('ijh,jhf->ihf', a, g)
+        attn_res = torch.einsum('ijh,jhf->ihf', a, g) #final output: new features h cua 1 head
         if self.is_concat:
             return attn_res.reshape(n_nodes, self.n_heads * self.n_hidden)
         else:
