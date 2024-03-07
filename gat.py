@@ -35,7 +35,7 @@ class GraphAttentionLayer(Module):
         assert adj_mat.shape[1] == 1 or adj_mat.shape[1] == n_nodes
         assert adj_mat.shape[2] == 1 or adj_mat.shape[2] == self.n_heads
 
-        e = e.masked_fill(adj_mat == 0, float('-inf'))
+        e = e.masked_fill(adj_mat == 0, float('-inf')) #mask: set attention score ve am vo cuc, dam bao no se k tham gia vao viec dung softmax de normalization
         a = self.softmax(e)
         a = self.dropout(a)
         attn_res = torch.einsum('ijh,jhf->ihf', a, g)
