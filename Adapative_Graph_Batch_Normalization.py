@@ -107,7 +107,7 @@ class AdapGBN(nn.Module):
         
         output = torch.matmul(self.temp_adjwithgrad, support)
         output = F.relu(output)
-        output = layer(output, adj_A)
+        output = layer(output, self.temp_adjwithgrad)
         # print(output.is_leaf)
         # self.temp_adjwithgrad.register_hook(lambda grad: grad)
         
