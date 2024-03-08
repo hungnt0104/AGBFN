@@ -6,7 +6,7 @@ import numpy as np
 import math
 import pdb
 import random
-
+import torch.nn.functional as F
 from gat import GraphAttentionLayer
 
 class AdapGBN(nn.Module):
@@ -98,19 +98,27 @@ class AdapGBN(nn.Module):
         input = input.cuda()
         layer = GraphAttentionLayer(in_features, out_features, n_heads)
         support = torch.matmul(input, self.normalize_weight) #Normalize_weight bao gom input feature va output feature
-        # adj_A = self.gen_adj(self.gen_A_possion(cs, phase, threshold)).cuda()
-        adj_A = self.gen_A_possion(cs, phase, threshold).cuda()
+        adj_A = self.gen_adj(self.gen_A_possion(cs, phase, threshold)).cuda()
+        # adj_A = self.gen_A_possion(cs, phase, threshold).cuda()
         
         self.temp_adjwithgrad = torch.Tensor(adj_A.shape[0], adj_A.shape[0]).requires_grad_()
         self.temp_adjwithgrad.data = adj_A
+        # self.temp_adjwithgrad.retain_grad()
         
         output = torch.matmul(self.temp_adjwithgrad, support)
+        output = F.relu(output)
+        output = layer(output, adj_A)
+        # print(output.is_leaf)
         # self.temp_adjwithgrad.register_hook(lambda grad: grad)
-        # output = layer(input, self.temp_adjwithgrad)
-        # print(output)
+        
+        # output.retain_grad()
+        # print(output.is_leaf)
+        # print(self.temp_adjwithgrad.is_leaf)
+        # print(output.grad)
         # self.temp_adjwithgrad.retain_grad()
         
         self.temp_adjwithgrad.register_hook(lambda grad: grad)
+        # print(self.temp_adjwithgrad.grad)
         # print(self.temp_adjwithgrad.grad)
         if self.bias is not None:
             return output + self.bias
@@ -118,7 +126,8 @@ class AdapGBN(nn.Module):
             return output
     
     def backward_agbn(self, lr):
-        print(self.temp_adjwithgrad.grad)
+        # print(self.temp_adjwithgrad.grad)
+        # print(self.temp_adjwithgrad.is_leaf)
         grad_adj_F = self.temp_adjwithgrad.grad.data.cpu().numpy()
         # try:
         # grad_adj_F = self.adjwithgrad.grad.data.cpu().numpy()
