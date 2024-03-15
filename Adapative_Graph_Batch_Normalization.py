@@ -27,12 +27,12 @@ class AdapGBN(nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
-        stdv = 1. / math.sqrt(self.normalize_weight.size(1))
-        self.normalize_weight.data.uniform_(-stdv, stdv)
+        stdv = 1. / math.sqrt(self.normalize_weight.size(1)) #Tinh standard deviation (sigma)
+        self.normalize_weight.data.uniform_(-stdv, stdv) #khoi tao weight su dung uniform distribution
         if self.bias is not None:
-            self.bias.data.uniform_(-stdv, stdv)
+            self.bias.data.uniform_(-stdv, stdv) #neu co bias thi cung khoi tao bias tuong tu
     
-    def gen_adj(self, A):
+    def gen_adj(self, A): #propagation rule 
         D = torch.pow(A.sum(1).float(), -0.5)
         D = torch.diag(D)
         adj = torch.matmul(torch.matmul(A, D).t(), D)
@@ -59,16 +59,17 @@ class AdapGBN(nn.Module):
         return _adj
     
     def gen_A_possion(self, cs, phase, threshold):
+        #cs: cossin similarity
         S = 1400
         lambda_possion = self.alpha_agbn.data.cpu().numpy()*cs + self.beta_agbn.data.cpu().numpy()
-        lambda_possion[lambda_possion < 0] = 0
-        self.threshold_possion = 1- np.exp(-1*lambda_possion)
+        lambda_possion[lambda_possion < 0] = 0 #relu
+        self.threshold_possion = 1- np.exp(-1*lambda_possion) #probability de co ket noi giua 2 samples
         self.cs = cs
         sample_init = 1/(1+1/np.sqrt(np.exp(1)))
         sample = 0
         for i in range(S):
             sample += np.random.rand(1)
-        sample = sample / S 
+        sample = sample / S #sample nam trong khoang tu 0 den 1
         if phase == "val":
             sample = threshold
         # sample = 0.5
@@ -76,8 +77,8 @@ class AdapGBN(nn.Module):
         cs[sample < self.threshold_possion] = 1
         cs[sample >= self.threshold_possion] = 0
         _adj = torch.from_numpy(cs).float().cuda()
-        _adj = _adj * 0.5/ (_adj.sum(0, keepdims=True) + 1e-6)
-        _adj = _adj + torch.from_numpy(np.identity(_adj.shape[0], np.int)).float().cuda()
+        _adj = _adj * 0.5/ (_adj.sum(0, keepdims=True) + 1e-6) #normalization
+        _adj = _adj + torch.from_numpy(np.identity(_adj.shape[0], np.int)).float().cuda() # A + I
 
         return _adj
 
